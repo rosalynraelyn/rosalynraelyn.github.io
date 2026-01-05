@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Menu Planner</title>
+    <style>
+        :root {
+            --bg-color: #FBFBFA;
+            --card-bg: #FFFFFF;
+            --border-color: #EDECE9;
+            --text-main: #37352F;
+            --text-secondary: #787774;
+            --accent-soft: #F1F1EF;
+            --cheat-bg: #F7F1E3;
+            --edit-blue: #0B6E99;
+        }
+
+        body {
+            background-color: var(--bg-color); color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            display: flex; justify-content: center; padding: 20px; line-height: 1.5;
+        }
+
+        .container { max-width: 500px; width: 100%; }
+        header { margin-bottom: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 16px; }
+
+        .status-bar {
+            position: sticky; top: 10px; background: var(--card-bg); border: 1px solid var(--border-color);
+            padding: 12px 16px; border-radius: 8px; display: flex; justify-content: space-between;
+            align-items: center; z-index: 100; margin-bottom: 24px; box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+        }
+
+        .remaining-val { font-weight: 700; font-size: 20px; }
+        .section { margin-bottom: 30px; }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+        .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-secondary); font-weight: 700; }
+
+        .add-btn { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 18px; padding: 0 5px; }
+        .meal-card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 8px; transition: 0.2s; }
+        .meal-header { display: flex; align-items: center; padding: 10px; cursor: pointer; }
+        .meal-info { flex-grow: 1; display: flex; align-items: center; }
+        .meal-name { font-size: 14px; margin-left: 10px; flex-grow: 1; }
+        .cal-display { font-size: 12px; font-family: monospace; color: var(--text-secondary); padding: 2px 6px; background: var(--accent-soft); border-radius: 4px; }
+
+        .details { display: none; padding: 12px; border-top: 1px solid var(--border-color); background: #FAFAFA; font-size: 13px; color: var(--text-secondary); }
+        .details.open { display: block; }
+
+        .override-box { margin-top: 10px; display: flex; align-items: center; gap: 8px; font-size: 12px; }
+        .override-input { width: 60px; padding: 4px; border: 1px solid var(--border-color); border-radius: 4px; }
+
+        .action-link { font-size: 11px; cursor: pointer; margin-top: 15px; display: inline-block; margin-right: 15px; text-decoration: underline; opacity: 0.7; }
+        .action-link:hover { opacity: 1; }
+        .delete-link { color: #d15d5d; }
+        .edit-link { color: var(--edit-blue); }
+
+        .disabled { opacity: 0.2; pointer-events: none; }
+        .btn-primary { width: 100%; padding: 12px; border-radius: 8px; border: none; background: var(--text-main); color: white; font-weight: 600; cursor: pointer; margin-top: 10px; }
+        .btn-secondary { background: none; border: 1px solid var(--border-color); color: var(--text-secondary); margin-top: 10px; padding: 8px; width: 100%; border-radius: 6px; cursor: pointer; font-size: 12px; }
+        
+        .history-section { margin-top: 50px; border-top: 1px solid var(--border-color); padding-top: 20px; }
+        .history-item { padding: 10px; border-bottom: 1px solid var(--border-color); }
+        .history-summary { cursor: pointer; display: flex; justify-content: space-between; }
+        .history-details { display: none; font-size: 12px; color: var(--text-secondary); margin-top: 5px; }
+
+        .cheat { background-color: var(--cheat-bg) !important; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header><h1>Daily Menu</h1></header>
+
+    <div class="status-bar">
+        <span>Budget Left</span>
+        <span class="remaining-val" id="budget">1400</span>
+    </div>
+
+    <div id="menu-container"></div>
+
+    <button class="btn-primary" onclick="saveDay()">Save Day to Log</button>
+    <button class="btn-secondary" onclick="location.reload()">Clear Selections</button>
+
+    <div class="history-section">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <span class="section-title">History Log</span>
+            <button onclick="downloadBackup()" style="font-size:10px; cursor:pointer;">Download Backup</button>
+        </div>
+        <div id="history-log"></div>
+    </div>
+</div>
+
+<script>
+const defaultMenu = {
+    "Breakfast": [
+        { id: 1, name: "Scrambled Eggs", base: 210, ingredients: "3 Large Eggs" },
+        { id: 2, name: "Oat Pancake", base: 250, ingredients: "1/2 cup Oats, 1 Egg" },
+        { id: 3, name: "Veggie & Egg Muffin Cups", base: 250, ingredients: "2 Eggs, diced peppers, 1 tbsp cheese" },
+        { id: 4, name: "Peanut Butter Toast", base: 300, ingredients: "1 slice bread, 1.5 tbsp Peanut Butter" },
+        { id: 5, name: "Cream Cheese Bagel", base: 350, ingredients: "1 Udi's Plain Bagel, 2 tbsp Philly 1/3 Less Fat" },
+        { id: 6, name: "Waffle", base: 350, ingredients: "2 standard waffles" },
+        { id: 7, name: "Savory Breakfast Bowl", base: 350, ingredients: "2 Eggs, 1/2 cup beans, 1 cup Sautéed Spinach" }
+    ],
+    "Lunch": [
+        { id: 8, name: "Full Bag of Popcorn", base: 200, ingredients: "1 bag Microwave Popcorn" },
+        { id: 9, name: "Cauliflower Fried Rice", base: 350, ingredients: "12oz Cauliflower Rice, 2 Eggs, Soy Sauce" },
+        { id: 10, name: "Egg & Veggie Wrap", base: 350, ingredients: "1 Tortilla, 2 Eggs, Veggies" },
+        { id: 11, name: "Bean & Veggie Bowl", base: 350, ingredients: "1/2 cup Beans, 2 cups Broccoli/Asparagus" },
+        { id: 12, name: "Veggie Chili", base: 350, ingredients: "1 cup Beans, Veggies" },
+        { id: 13, name: "Lotus Ramen w/ Egg", base: 400, ingredients: "1 Millet & Brown Rice Cake, 1 Egg, Broth" },
+        { id: 14, name: "Bean Quesadilla", base: 400, ingredients: "1 Tortilla, 1/2 cup Beans, 2 tbsp Cheese" }
+    ],
+    "Dinner": [
+        { id: 15, name: "Shrimp & Asparagus", base: 350, ingredients: "6oz Shrimp, 1 bunch Asparagus, 1 tsp Oil" },
+        { id: 16, name: "Egg & Potato Hash", base: 350, ingredients: "2 Eggs, 1/2 cup roasted Potatoes" },
+        { id: 17, name: "Veggie Stir-fry w/ Shrimp", base: 350, ingredients: "4oz Shrimp, 2 cups Veggies" },
+        { id: 18, name: "Bean & Veggie Stir-fry", base: 350, ingredients: "1/2 cup Beans, 2 cups Veggies" },
+        { id: 19, name: "Simple Bean Tacos", base: 350, ingredients: "1 Small Tortilla, 1/2 cup Beans, 1 tbsp Cheese" },
+        { id: 20, name: "Lotus Ramen w/ Egg (Dinner)", base: 400, ingredients: "1 Millet & Brown Rice Cake, 1 Egg" }
+    ],
+    "Snacks": [
+        { id: 21, name: "String Cheese", base: 80, ingredients: "1 Low-fat String Cheese" },
+        { id: 22, name: "Hard-boiled Egg + Veggies", base: 120, ingredients: "1 Egg, 1 cup Veggies" },
+        { id: 23, name: "Veggies + PB/Cream Cheese", base: 120, ingredients: "1 cup Veggies, 1 tbsp PB or Neufchatel" },
+        { id: 24, name: "Small Bag Doritos", base: 150, ingredients: "1 Snack Size Bag" },
+        { id: 25, name: "Veggies + 2tbsp Hummus", base: 150, ingredients: "1 cup Veggies, 2 tbsp Hummus" },
+        { id: 26, name: "Mini Bean & Cheese Quesadilla", base: 200, ingredients: "1 Small Corn Tortilla, 1/4 cup Beans, 1 tbsp Cheese" }
+    ],
+    "Weekly Specials": [
+        { id: 27, name: "Nutella Bagel", base: 500, ingredients: "1 Udi's Bagel, 2 tbsp Nutella", isCheat: true },
+        { id: 28, name: "Buttery Popcorn Binge", base: 550, ingredients: "1 bag Popcorn + 3 tbsp Butter", isCheat: true },
+        { id: 29, name: "Double Ramen", base: 800, ingredients: "2 Lotus Ramen Cakes, 2 Eggs", isCheat: true }
+    ]
+};
+
+let userMenu = JSON.parse(localStorage.getItem('userMenu')) || defaultMenu;
+
+function renderMenu() {
+    const container = document.getElementById('menu-container');
+    container.innerHTML = '';
+    for (const [section, items] of Object.entries(userMenu)) {
+        let html = `<div class="section"><div class="section-header"><span class="section-title">${section}</span><button class="add-btn" onclick="addNewMeal('${section}')">+</button></div>`;
+        items.forEach((item) => {
+            html += `<div class="meal-card ${item.isCheat ? 'cheat' : ''}" id="card-${item.id}">
+                <div class="meal-header">
+                    <input type="checkbox" id="check-${item.id}" onchange="update()">
+                    <div class="meal-info" onclick="toggleDetails('${item.id}')">
+                        <span class="meal-name">${item.name}</span>
+                        <span class="cal-display" id="cal-val-${item.id}">${item.base}</span>
+                    </div>
+                </div>
+                <div class="details" id="details-${item.id}">
+                    <strong>Ingredients:</strong><br>${item.ingredients || 'No measurements.'}
+                    <div class="override-box">Override Today: <input type="number" class="override-input" id="over-${item.id}" value="${item.base}" oninput="manualAdjust('${item.id}')"></div>
+                    <span class="action-link edit-link" onclick="editMeal('${section}', ${item.id})">Edit Definition</span>
+                    <span class="action-link delete-link" onclick="deleteMeal('${section}', ${item.id})">Remove</span>
+                </div>
+            </div>`;
+        });
+        container.innerHTML += html + `</div>`;
+    }
+    update();
+}
+
+function addNewMeal(section) {
+    const name = prompt("Meal Name:"); if (!name) return;
+    const base = parseInt(prompt("Calories:", "300"));
+    const ing = prompt("Ingredients:");
+    userMenu[section].push({ id: Date.now(), name, base, ingredients: ing, isCheat: section === "Weekly Specials" });
+    saveMenu();
+}
+
+function editMeal(section, id) {
+    const item = userMenu[section].find(i => i.id === id);
+    const newName = prompt("Edit Name:", item.name);
+    const newBase = prompt("Edit Base Calories:", item.base);
+    const newIng = prompt("Edit Ingredients:", item.ingredients);
+    if (newName) item.name = newName;
+    if (newBase) item.base = parseInt(newBase);
+    if (newIng) item.ingredients = newIng;
+    saveMenu();
+}
+
+function deleteMeal(section, id) { if(confirm("Remove permanently?")) { userMenu[section] = userMenu[section].filter(i => i.id !== id); saveMenu(); } }
+function saveMenu() { localStorage.setItem('userMenu', JSON.stringify(userMenu)); renderMenu(); }
+function toggleDetails(id) { document.getElementById(`details-${id}`).classList.toggle('open'); }
+function manualAdjust(id) { document.getElementById(`cal-val-${id}`).innerText = document.getElementById(`over-${id}`).value || 0; update(); }
+
+function update() {
+    let total = 0;
+    const checks = document.querySelectorAll('input[type="checkbox"]:not(.history-item input)');
+    checks.forEach(c => { if (c.checked) { total += parseInt(document.getElementById(`cal-val-${c.id.replace('check-', '')}`).innerText); } });
+    let rem = 1400 - total;
+    document.getElementById('budget').innerText = rem;
+    document.getElementById('budget').style.color = rem < 0 ? "#D15D5D" : "#37352F";
+    checks.forEach(c => {
+        if (!c.checked) {
+            const v = parseInt(document.getElementById(`cal-val-${c.id.replace('check-', '')}`).innerText);
+            if (total + v > 1400) { c.disabled = true; document.getElementById(`card-${c.id.replace('check-', '')}`).classList.add('disabled'); }
+            else { c.disabled = false; document.getElementById(`card-${c.id.replace('check-', '')}`).classList.remove('disabled'); }
+        }
+    });
+}
+
+function saveDay() {
+    const meals = []; let total = 0;
+    document.querySelectorAll('input:checked').forEach(c => {
+        const id = c.id.replace('check-', '');
+        const name = document.querySelector(`#card-${id} .meal-name`).innerText;
+        const cal = document.getElementById(`cal-val-${id}`).innerText;
+        meals.push(`${name} (${cal})`); total += parseInt(cal);
+    });
+    if(total === 0) return;
+    const history = JSON.parse(localStorage.getItem('mealHistory') || '[]');
+    history.unshift({ id: Date.now(), date: new Date().toLocaleDateString(), total, meals: meals.join(', ') });
+    localStorage.setItem('mealHistory', JSON.stringify(history));
+    loadHistory(); alert("Logged!");
+}
+
+function loadHistory() {
+    const history = JSON.parse(localStorage.getItem('mealHistory') || '[]');
+    document.getElementById('history-log').innerHTML = history.map((h, i) => `
+        <div class="history-item">
+            <div class="history-summary" onclick="toggleHistory(${i})">
+                <strong>${h.date}</strong> <span>${h.total} kcal</span>
+            </div>
+            <div class="history-details" id="hist-${i}">
+                <p>${h.meals}</p>
+                <span class="action-link edit-link" onclick="editHistory(${h.id})">Edit Entry</span>
+                <span class="action-link delete-link" onclick="deleteHistory(${h.id})">Delete Entry</span>
+            </div>
+        </div>`).join('');
+}
+
+function editHistory(id) {
+    let history = JSON.parse(localStorage.getItem('mealHistory') || '[]');
+    const entry = history.find(h => h.id === id);
+    const newTotal = prompt("Edit Total Calories:", entry.total);
+    const newMeals = prompt("Edit Meal List:", entry.meals);
+    if(newTotal) entry.total = parseInt(newTotal);
+    if(newMeals) entry.meals = newMeals;
+    localStorage.setItem('mealHistory', JSON.stringify(history));
+    loadHistory();
+}
+
+function deleteHistory(id) { if(confirm("Delete this log?")) { let history = JSON.parse(localStorage.getItem('mealHistory') || '[]'); history = history.filter(h => h.id !== id); localStorage.setItem('mealHistory', JSON.stringify(history)); loadHistory(); } }
+function toggleHistory(i) { const el = document.getElementById(`hist-${i}`); el.style.display = el.style.display === 'block' ? 'none' : 'block'; }
+function downloadBackup() { const blob = new Blob([localStorage.getItem('mealHistory')], { type: 'text/plain' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'history-backup.txt'; a.click(); }
+
+renderMenu();
+loadHistory();
+</script>
+</body>
+</html>
